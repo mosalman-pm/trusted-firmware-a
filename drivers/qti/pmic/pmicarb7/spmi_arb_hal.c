@@ -55,21 +55,14 @@ static int addr_to_channel(uint32_t addr)
 
 		found = (int)chan;
 
-		INFO("SPMI_ARB addr_to_channel: chan=%u match, REG_ADDRp=0x%x\n",
-			chan, reg_addr);
-
 		uint32_t owner_addr = HWIO_SPMI_PERIPHm_2OWNER_TABLE_REG_ADDR(SPMI_ARB_BASE, chan);
 		uint32_t owner_reg = mmio_read_32(owner_addr);
 		uint8_t owner = (owner_reg &
 				 HWIO_SPMI_PERIPHm_2OWNER_TABLE_REG_PERIPH2OWNER_BMSK) >>
 				HWIO_SPMI_PERIPHm_2OWNER_TABLE_REG_PERIPH2OWNER_SHFT;
 
-		INFO("SPMI_ARB addr_to_channel: chan=%u 2OWNER_TABLE=0x%x, owner=%u\n",
-			chan, owner_addr, owner);
 
 		if (owner == TZ_OWNER_ID) {
-			INFO("SPMI_ARB addr_to_channel: chan=%u owner match, using chan=%u\n",
-				chan, chan);
 			break;
 		}
 	}
@@ -118,9 +111,6 @@ static void issue_command(unsigned int chan, uint8_t opcode, uint32_t addr)
 			 HWIO_PMIC_ARB_CHNLn_CMD_ADDRESS_OFFSET_BMSK) |
 			(0U & HWIO_PMIC_ARB_CHNLn_CMD_BYTE_CNT_BMSK); /* 1 byte */
 
-	INFO("SPMI_ARB issue_command: chan=%u CHNLn_CMD=0x%x, cmd=0x%x\n",
-		chan, cmd_addr, cmd);
-
 	mmio_write_32(cmd_addr, cmd);
 }
 
@@ -131,20 +121,13 @@ int spmi_arb_read8(uint32_t addr)
 	uint8_t val;
 	uint32_t rdata_addr;
 
-	INFO("SPMI_ARB read: addr=0x%x, resolving channel\n", addr);
-
 	chan = addr_to_channel(addr);
 	if (chan < 0) {
 		ERROR("SPMI_ARB read: no channel found for addr=0x%x\n", addr);
 		return chan;
 	}
 
-	INFO("SPMI_ARB read: addr=0x%x resolved to chan=%d, issuing command\n",
-		addr, chan);
-
 	issue_command((unsigned int)chan, PMIC_ARB_CMD_EXTENDED_REG_READ_LONG, addr);
-
-	INFO("SPMI_ARB read: chan=%d command issued, waiting for completion\n", chan);
 
 	ret = wait_for_done((unsigned int)chan);
 	if (ret != 0) {
@@ -155,9 +138,6 @@ int spmi_arb_read8(uint32_t addr)
 	rdata_addr = HWIO_PMIC_ARB_CHNLn_RDATA0_ADDR(SPMI_ARB_BASE, chan);
 	val = mmio_read_32(rdata_addr) & 0xffU;
 
-	INFO("SPMI_ARB read: addr=0x%x chan=%d CHNLn_RDATA0=0x%x complete, data=0x%x\n",
-		addr, chan, rdata_addr, val);
-
 	return (int)val;
 }
 
@@ -166,8 +146,6 @@ int spmi_arb_write8(uint32_t addr, uint8_t data)
 	int chan;
 	int ret;
 	uint32_t wdata_addr;
-
-	INFO("SPMI_ARB write: addr=0x%x, data=0x%x, resolving channel\n", addr, data);
 
 	chan = addr_to_channel(addr);
 	if (chan < 0) {
@@ -182,11 +160,7 @@ int spmi_arb_write8(uint32_t addr, uint8_t data)
 
 	mmio_write_32(wdata_addr, data);
 
-	INFO("SPMI_ARB write: chan=%d data written, issuing command\n", chan);
-
 	issue_command((unsigned int)chan, PMIC_ARB_CMD_EXTENDED_REG_WRITE_LONG, addr);
-
-	INFO("SPMI_ARB write: chan=%d command issued, waiting for completion\n", chan);
 
 	ret = wait_for_done((unsigned int)chan);
 	if (ret != 0) {
